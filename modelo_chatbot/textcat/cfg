@@ -1,0 +1,9 @@
+{
+  "labels":[
+    "Hola, un placer en que puedo ayudarte.",
+    "La extranet es la plataforma para poder registrar tus papeletas.",
+    "Para registrar papeletas primero debes iniciar sesi\u00f3n."
+  ],
+  "threshold":0.0,
+  "positive_label":null
+}
