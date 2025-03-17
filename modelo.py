@@ -13,21 +13,23 @@ db_config = {
     "host": "172.16.0.134",  # Cambia según tu configuración
     "user": "developer",
     "password": "L4num3r01",
-    "database": "extranet"  
+    "database": "extranet",
 }
 
-# Conectar a MySQL 
+# Conectar a MySQL
 conn = mysql.connector.connect(**db_config)
 cursor = conn.cursor(dictionary=True)
 
 # ==========================
 # 🔹 2️⃣ OBTENER DATOS 🔹
 # ==========================
-cursor.execute("""
+cursor.execute(
+    """
     SELECT ck.keyword, cr.response 
     FROM chat_keywords ck
     JOIN chat_responses cr ON ck.chat_response_id = cr.id
-""")
+"""
+)
 train_data = cursor.fetchall()
 
 # Cerrar conexión
@@ -75,16 +77,18 @@ print("✅ Modelo entrenado y guardado como 'modelo_chatbot'")
 # Cargar modelo entrenado
 nlp = spacy.load("modelo_chatbot")
 
+
 @app.route("/chatbot", methods=["POST"])
 def chatbot():
     data = request.json
     mensaje = data.get("message", "")
-    
+
     doc = nlp(mensaje)
     categorias = doc.cats
     mejor_respuesta = max(categorias, key=categorias.get)
-    
+
     return jsonify({"response": mejor_respuesta})
 
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=6000, debug=True)
