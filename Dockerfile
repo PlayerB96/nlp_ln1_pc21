@@ -19,7 +19,7 @@ RUN python -m spacy download es_core_news_sm || true
 COPY . /app
 
 # Exponer el puerto para Flask
-EXPOSE 5000
+EXPOSE 6000
 
 # Comando para ejecutar la aplicación
 CMD ["python", "modelo.py"]
