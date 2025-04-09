@@ -18,11 +18,10 @@
   },
   "labels":{
     "textcat":[
-      "Hola, un placer en que puedo ayudarte.",
-      "La extranet es la plataforma para poder registrar tus papeletas.",
-      "Para registrar papeletas primero debes iniciar sesi\u00f3n.",
-      "Cuentamelo todo y exagera",
-      "Aqu\u00ed tienes el documento solicitado:"
+      "\u00a1Hola! \u00bfEn qu\u00e9 puedo ayudarte hoy?",
+      "Claro, ofrecemos servicios de soporte t\u00e9cnico, desarrollo web y consultor\u00eda, escribe la palabra 'ticket' para darte atenci\u00f3n.",
+      "Nuestro horario de atenci\u00f3n es de lunes a viernes, de 9am a 6pm.",
+      "Por favor, env\u00edame tu n\u00famero de tel\u00e9fono para ayudarte con tu ticket."
     ]
   },
   "pipeline":[
