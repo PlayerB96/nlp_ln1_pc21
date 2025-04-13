@@ -115,9 +115,8 @@ def chatbot():
                     json={"phone": telefono, "message": "VALIDACION DE TICKET"},
                 )
 
-                # Verificar si las coordenadas lat y long están presentes
                 if lat and long:
-                    # Segundo mensaje: ubicación con marcador en Google Maps
+                    # Ubicación recibida correctamente
                     google_maps_url = f"https://www.google.com/maps?q={lat},{long}&hl=es-419&markers={lat},{long}"
                     res2 = requests.post(
                         "http://159.223.200.169:3001/lead",
@@ -126,8 +125,22 @@ def chatbot():
                             "message": f"Se generó un ticket de soporte desde la ubicación: {google_maps_url}",
                         },
                     )
+
+                    if res1.status_code == 200 and res2.status_code == 200:
+                        user_states.pop(user_id, None)
+                        return jsonify(
+                            {"response": chat_responses[4]["response"], "status": True}
+                        )
+                    else:
+                        user_states.pop(user_id, None)
+                        return jsonify(
+                            {
+                                "response": "Hubo un problema al registrar tu ticket. Intenta más tarde.",
+                                "status": False,
+                            }
+                        )
                 else:
-                    # Si no hay coordenadas, se usa un enlace por defecto
+                    # No se recibió ubicación
                     res2 = requests.post(
                         "http://159.223.200.169:3001/lead",
                         json={
@@ -135,27 +148,27 @@ def chatbot():
                             "message": "Se generó un ticket de soporte, pero no se recibió información de ubicación.",
                         },
                     )
-
-                if res1.status_code == 200 and res2.status_code == 200:
-                    user_states.pop(user_id, None)
-                    return jsonify({"response": chat_responses[4]["response"]})
-                else:
                     user_states.pop(user_id, None)
                     return jsonify(
                         {
-                            "response": "Hubo un problema al registrar tu ticket. Intenta más tarde."
+                            "response": "Tu ticket fue registrado, pero no se recibió ubicación.",
+                            "status": False,
                         }
                     )
             except Exception as e:
                 user_states.pop(user_id, None)
                 return jsonify(
-                    {"response": "Error conectando con el servidor de tickets."}
+                    {
+                        "response": "Error conectando con el servidor de tickets.",
+                        "status": False,
+                    }
                 )
         else:
             user_states.pop(user_id, None)
             return jsonify(
                 {
-                    "response": "No pude detectar tu número. Asegúrate de enviarlo en formato 9XXXXXXXX o +519XXXXXXXX. Iniciemos de nuevo."
+                    "response": "No pude detectar tu número. Asegúrate de enviarlo en formato 9XXXXXXXX o +519XXXXXXXX. Iniciemos de nuevo.",
+                    "status": False,
                 }
             )
 
@@ -164,11 +177,19 @@ def chatbot():
     categorias = doc.cats
     mejor_respuesta = max(categorias, key=categorias.get)
 
-    # Si es la respuesta del ticket, cambiamos estado
+    # Cambiar estado si corresponde
     if mejor_respuesta == chat_responses[3]["response"]:
         user_states[user_id] = "esperando_telefono"
 
-    return jsonify({"response": mejor_respuesta})
+    # Buscar el texto correcto desde la lista de respuestas
+    respuesta_obj = next(
+        (r for r in chat_responses if r["response"] == mejor_respuesta), None
+    )
+    respuesta_texto = (
+        respuesta_obj["response"] if respuesta_obj else "Lo siento, no entendí eso."
+    )
+
+    return jsonify({"response": respuesta_texto, "status": False})
 
 
 # ================================
