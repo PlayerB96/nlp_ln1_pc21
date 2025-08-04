@@ -111,7 +111,7 @@ def chatbot():
             try:
                 # Primer mensaje: validación
                 res1 = requests.post(
-                    "http://159.223.200.169:3001/lead",
+                    "http://31.97.11.235:3001/lead",
                     json={"phone": telefono, "message": "VALIDACION DE TICKET"},
                 )
 
@@ -119,7 +119,7 @@ def chatbot():
                     # Ubicación recibida correctamente
                     google_maps_url = f"https://www.google.com/maps?q={lat},{long}&hl=es-419&markers={lat},{long}"
                     res2 = requests.post(
-                        "http://159.223.200.169:3001/lead",
+                        "http://31.97.11.235:3001/lead",
                         json={
                             "phone": telefono,
                             "message": f"Se generó un ticket de soporte desde la ubicación: {google_maps_url}",
@@ -142,7 +142,7 @@ def chatbot():
                 else:
                     # No se recibió ubicación
                     res2 = requests.post(
-                        "http://159.223.200.169:3001/lead",
+                        "http://31.97.11.235:3001/lead",
                         json={
                             "phone": telefono,
                             "message": "Se generó un ticket de soporte, pero no se recibió información de ubicación.",
