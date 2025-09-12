@@ -38,6 +38,8 @@ chat_keywords = [
 # Estados de los usuarios
 user_states = {}
 
+# Contador de tickets por usuario
+user_ticket_counter = {}
 
 # ================================
 # 🔹 2️⃣ FUNCIONES AUXILIARES
@@ -61,7 +63,7 @@ def extraer_telefono(texto):
     if match:
         numero = match.group(0)
         if not numero.startswith("+51"):
-            numero =  numero
+            numero = numero
         return numero
     return None
 
@@ -72,64 +74,58 @@ def extraer_telefono(texto):
 @app.route("/chatbot", methods=["POST"])
 def chatbot():
     data = request.json
-    mensaje = data.get("message", "").lower()
+    mensaje = data.get("message", "").strip()
     user_id = data.get("user_id", "default")
     lat = data.get("lat")
     long = data.get("long")
 
-    # 1️⃣ Estado esperando número de teléfono
-    if user_states.get(user_id) == "esperando_telefono":
-        telefono = extraer_telefono(mensaje)
-        if telefono:
-            try:
-                # Primer mensaje: validación
-                res1 = requests.post(
-                    "http://31.97.11.235:3001/lead",
-                    json={"phone": telefono, "message": "VALIDACION DE TICKET"},
-                )
-                print(res1.json())
-                print(telefono)
-                if lat and long:
-                    google_maps_url = f"https://www.google.com/maps?q={lat},{long}&hl=es-419&markers={lat},{long}"
-                    res2 = requests.post(
-                        "http://31.97.11.235:3001/lead",
-                        json={
-                            "phone": telefono,
-                            "message": f"Se generó un ticket de soporte desde la ubicación: {google_maps_url}",
-                        },
-                    )
-                    print(res2.json())
-                    if res1.status_code == 200 and res2.status_code == 200:
-                        user_states.pop(user_id, None)
-                        return jsonify({"response": chat_responses[4]["response"], "status": True})
-                    else:
-                        user_states.pop(user_id, None)
-                        return jsonify(
-                            {"response": "Hubo un problema al registrar tu ticket. Intenta más tarde.", "status": False}
-                        )
-                else:
-                    res2 = requests.post(
-                        "http://31.97.11.235:3001/lead",
-                        json={
-                            "phone": telefono,
-                            "message": "Se generó un ticket de soporte, pero no se recibió información de ubicación.",
-                        },
-                    )
-                    user_states.pop(user_id, None)
-                    return jsonify(
-                        {"response": "Tu ticket fue registrado, pero no se recibió ubicación.", "status": False}
-                    )
-            except Exception as e:
-                user_states.pop(user_id, None)
-                return jsonify({"response": "Error conectando con el servidor de tickets.", "status": False})
-        else:
-            user_states.pop(user_id, None)
-            return jsonify(
-                {"response": "No pude detectar tu número. Asegúrate de enviarlo en formato 9XXXXXXXX o +519XXXXXXXX. Iniciemos de nuevo.", "status": False}
-            )
+    # Primero, intentamos extraer el teléfono directamente del mensaje
+    telefono = extraer_telefono(mensaje)
 
-    # 2️⃣ Búsqueda de respuesta por palabras clave
-    respuesta = buscar_respuesta(mensaje)
+    if telefono:
+        try:
+            # Número de ticket iterativo por usuario
+            ticket_num = user_ticket_counter.get(user_id, 1)
+
+            # Mensaje que se enviará al número
+            mensaje_ticket = f"Se ha registrado su ticket de soporte, número {ticket_num}"
+
+            # Enviar mensaje al API externo
+            payload = {
+                "phone": "+51986514012",
+                "message": mensaje_ticket
+            }
+
+            # Si hay latitud/longitud, agregar info de ubicación
+            if lat and long:
+                google_maps_url = f"https://www.google.com/maps?q={lat},{long}&hl=es-419&markers={lat},{long}"
+                payload["message"] += f". Ubicación registrada: {google_maps_url}"
+
+            res = requests.post("http://31.97.11.235:3001/lead", json=payload)
+            # print(res.json())
+            print(res.status_code)
+            # print(f"Enviado a {telefono}: {mensaje_ticket}")
+            if res.status_code == 200:
+                mensaje_ticket2 = f"Su ticket de soporte se ha Registrado, número {ticket_num}"
+                payload2 = {
+                    "phone": telefono,
+                    "message": mensaje_ticket2
+                }
+
+                res2 = requests.post("http://31.97.11.235:3001/lead", json=payload2)
+                print(res2.status_code)
+                print(res2.json())
+            # Incrementar contador para siguiente ticket
+            user_ticket_counter[user_id] = ticket_num + 1
+
+            return jsonify({"response": f"Tu ticket #{ticket_num} ha sido registrado. ¡Gracias por contactarnos!", "status": True})
+
+        except Exception as e:
+            return jsonify({"response": "Error conectando con el servidor de tickets.", "status": False})
+
+    # Si no es número, buscar respuesta por palabras clave
+    mensaje_lower = mensaje.lower()
+    respuesta = buscar_respuesta(mensaje_lower)
 
     # Si el usuario dijo "ticket", guardamos el estado
     if respuesta == chat_responses[3]["response"]:
@@ -139,6 +135,7 @@ def chatbot():
         return jsonify({"response": respuesta, "status": False})
     else:
         return jsonify({"response": "Lo siento, no entendí eso.", "status": False})
+
 
 
 # ================================
