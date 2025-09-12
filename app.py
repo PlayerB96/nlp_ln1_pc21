@@ -1,5 +1,3 @@
-import spacy
-from spacy.training.example import Example
 from flask import Flask, request, jsonify
 import requests
 import re
@@ -37,50 +35,25 @@ chat_keywords = [
     {"keyword": "ticket", "chat_response_id": 4},
 ]
 
-# Unir datos simulados
-train_data = []
-for ck in chat_keywords:
-    response_text = next(
-        (cr["response"] for cr in chat_responses if cr["id"] == ck["chat_response_id"]),
-        None,
-    )
-    if response_text:
-        train_data.append({"keyword": ck["keyword"], "response": response_text})
-
-print(f"✅ Datos cargados: {len(train_data)} registros")
-
-# ================================
-# 🔹 2️⃣ ENTRENAMIENTO NLP
-# ================================
-nlp = spacy.blank("es")
-
-if "textcat" not in nlp.pipe_names:
-    textcat = nlp.add_pipe("textcat", last=True)
-
-for data in train_data:
-    textcat.add_label(data["response"])
-
-training_data = []
-for data in train_data:
-    training_data.append((data["keyword"], {"cats": {data["response"]: 1.0}}))
-
-optimizer = nlp.begin_training()
-for epoch in range(10):
-    losses = {}
-    for text, annotations in training_data:
-        doc = nlp.make_doc(text)
-        example = Example.from_dict(doc, annotations)
-        nlp.update([example], drop=0.5, losses=losses)
-    print(f"📌 Pérdidas en la época {epoch}: {losses}")
-
-nlp.to_disk("modelo_chatbot")
-print("✅ Modelo entrenado y guardado como 'modelo_chatbot'")
-
-# ================================
-# 🔹 3️⃣ FUNCIONES Y ESTADO
-# ================================
-nlp = spacy.load("modelo_chatbot")
+# Estados de los usuarios
 user_states = {}
+
+
+# ================================
+# 🔹 2️⃣ FUNCIONES AUXILIARES
+# ================================
+def buscar_respuesta(mensaje: str):
+    """
+    Busca una respuesta en base a coincidencia de palabra clave.
+    """
+    for ck in chat_keywords:
+        if ck["keyword"] in mensaje:
+            respuesta = next(
+                (cr["response"] for cr in chat_responses if cr["id"] == ck["chat_response_id"]),
+                None,
+            )
+            return respuesta
+    return None
 
 
 def extraer_telefono(texto):
@@ -88,13 +61,13 @@ def extraer_telefono(texto):
     if match:
         numero = match.group(0)
         if not numero.startswith("+51"):
-            numero = "+51" + numero
+            numero =  numero
         return numero
     return None
 
 
 # ================================
-# 🔹 4️⃣ ENDPOINT FLASK
+# 🔹 3️⃣ ENDPOINT FLASK
 # ================================
 @app.route("/chatbot", methods=["POST"])
 def chatbot():
@@ -114,9 +87,9 @@ def chatbot():
                     "http://31.97.11.235:3001/lead",
                     json={"phone": telefono, "message": "VALIDACION DE TICKET"},
                 )
-
+                print(res1.json())
+                print(telefono)
                 if lat and long:
-                    # Ubicación recibida correctamente
                     google_maps_url = f"https://www.google.com/maps?q={lat},{long}&hl=es-419&markers={lat},{long}"
                     res2 = requests.post(
                         "http://31.97.11.235:3001/lead",
@@ -125,22 +98,16 @@ def chatbot():
                             "message": f"Se generó un ticket de soporte desde la ubicación: {google_maps_url}",
                         },
                     )
-
+                    print(res2.json())
                     if res1.status_code == 200 and res2.status_code == 200:
                         user_states.pop(user_id, None)
-                        return jsonify(
-                            {"response": chat_responses[4]["response"], "status": True}
-                        )
+                        return jsonify({"response": chat_responses[4]["response"], "status": True})
                     else:
                         user_states.pop(user_id, None)
                         return jsonify(
-                            {
-                                "response": "Hubo un problema al registrar tu ticket. Intenta más tarde.",
-                                "status": False,
-                            }
+                            {"response": "Hubo un problema al registrar tu ticket. Intenta más tarde.", "status": False}
                         )
                 else:
-                    # No se recibió ubicación
                     res2 = requests.post(
                         "http://31.97.11.235:3001/lead",
                         json={
@@ -150,50 +117,32 @@ def chatbot():
                     )
                     user_states.pop(user_id, None)
                     return jsonify(
-                        {
-                            "response": "Tu ticket fue registrado, pero no se recibió ubicación.",
-                            "status": False,
-                        }
+                        {"response": "Tu ticket fue registrado, pero no se recibió ubicación.", "status": False}
                     )
             except Exception as e:
                 user_states.pop(user_id, None)
-                return jsonify(
-                    {
-                        "response": "Error conectando con el servidor de tickets.",
-                        "status": False,
-                    }
-                )
+                return jsonify({"response": "Error conectando con el servidor de tickets.", "status": False})
         else:
             user_states.pop(user_id, None)
             return jsonify(
-                {
-                    "response": "No pude detectar tu número. Asegúrate de enviarlo en formato 9XXXXXXXX o +519XXXXXXXX. Iniciemos de nuevo.",
-                    "status": False,
-                }
+                {"response": "No pude detectar tu número. Asegúrate de enviarlo en formato 9XXXXXXXX o +519XXXXXXXX. Iniciemos de nuevo.", "status": False}
             )
 
-    # 2️⃣ NLP normal
-    doc = nlp(mensaje)
-    categorias = doc.cats
-    mejor_respuesta = max(categorias, key=categorias.get)
+    # 2️⃣ Búsqueda de respuesta por palabras clave
+    respuesta = buscar_respuesta(mensaje)
 
-    # Cambiar estado si corresponde
-    if mejor_respuesta == chat_responses[3]["response"]:
+    # Si el usuario dijo "ticket", guardamos el estado
+    if respuesta == chat_responses[3]["response"]:
         user_states[user_id] = "esperando_telefono"
 
-    # Buscar el texto correcto desde la lista de respuestas
-    respuesta_obj = next(
-        (r for r in chat_responses if r["response"] == mejor_respuesta), None
-    )
-    respuesta_texto = (
-        respuesta_obj["response"] if respuesta_obj else "Lo siento, no entendí eso."
-    )
-
-    return jsonify({"response": respuesta_texto, "status": False})
+    if respuesta:
+        return jsonify({"response": respuesta, "status": False})
+    else:
+        return jsonify({"response": "Lo siento, no entendí eso.", "status": False})
 
 
 # ================================
-# 🔹 5️⃣ CORRER LA APP
+# 🔹 4️⃣ CORRER LA APP
 # ================================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=6000, debug=True)

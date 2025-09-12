@@ -1,24 +1,10 @@
 {
-<<<<<<< HEAD
   "files.exclude": {
-    "**/.git": true,
-    "**/.svn": true,
-    "**/.hg": true,
-    "**/.DS_Store": true,
-    "**/Thumbs.db": true
+    "**/__pycache__": true,
+    "**/.vscode": true
   },
-  "hide-files.files": []
+  "search.exclude": {
+    "**/__pycache__": true,
+    "**/.vscode": true
+  }
 }
-=======
-    "files.exclude": {
-        "**/.git": true,
-        "**/.svn": true,
-        "**/.hg": true,
-        "**/.DS_Store": true,
-        "**/Thumbs.db": true,
-        "**/__pycache__": true,
-        "__pycache__": true
-    },
-    "explorerExclude.backup": {}
-}
->>>>>>> 60d4e1e66e17768bbf97aaa37ce4346ee6395249
