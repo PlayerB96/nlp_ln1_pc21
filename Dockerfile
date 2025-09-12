@@ -22,4 +22,4 @@ COPY . /app
 EXPOSE 6000
 
 # Comando para ejecutar la aplicación
-CMD ["python", "modelo.py"]
+CMD ["python", "app.py"]
